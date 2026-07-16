@@ -3,42 +3,78 @@
 #include <linux/init.h>
 #include <linux/sched/signal.h>
 
+
 /*
- * Module Load Function
- */
+    Module Load Function
+*/
 static int __init task_viewer_init(void)
 {
     struct task_struct *task;
 
+
     printk(KERN_INFO "===== Task Viewer Loaded =====\n");
 
+
     /*
-     * Traverse every process in the kernel task list
-     */
+        Traverse every process
+        in the kernel task list
+    */
     for_each_process(task)
     {
+
         printk(KERN_INFO
-               "PID: %d | Process: %s | State: %ld\n",
+               "PID: %d | Name: %s | Parent PID: %d | State: %u\n",
+               
                task->pid,
+               
                task->comm,
-               task->__state);
+               
+               task->parent->pid,
+               
+               task->__state
+        );
+
     }
+
+
+    printk(KERN_INFO "===== Process Listing Finished =====\n");
+
 
     return 0;
 }
 
+
+
 /*
- * Module Exit Function
- */
+    Module Remove Function
+*/
 static void __exit task_viewer_exit(void)
 {
-    printk(KERN_INFO "===== Task Viewer Unloaded =====\n");
+
+    printk(KERN_INFO "===== Task Viewer Removed =====\n");
+
 }
 
+
+
+/*
+    Register functions
+*/
+
 module_init(task_viewer_init);
+
 module_exit(task_viewer_exit);
 
+
+
+/*
+    Module Information
+*/
+
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("P K PRANAV");
-MODULE_DESCRIPTION("Linux Kernel Module to Display Running Processes");
+
+MODULE_AUTHOR("Pranav");
+
+MODULE_DESCRIPTION("Linux Kernel Process Viewer");
+
 MODULE_VERSION("1.0");
