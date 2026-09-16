@@ -23,10 +23,27 @@ class BackendController:
         self.last_scan_time = 0
         self.comparisons = []
         self.current_alerts = []
+        self.active_anomalies = set()
         
         # Live mode if /proc exists (and we're on linux)
         self.is_live = os.path.exists("/proc") and os.name == 'posix'
         
+    def trigger_anomaly(self, anomaly_type):
+        self.active_anomalies.add(anomaly_type)
+        
+    def _apply_anomalies(self, k_tasks, p_tasks, modules):
+        from backend.models import ProcessRecord, KernelModuleRecord
+        if "hidden_process" in self.active_anomalies:
+            # Inject a fake rootkit process into kernel view only
+            k_tasks.append(ProcessRecord(9999, 1, "kworker/9:9", "S", 0, "", 0.0, 1, "kernel"))
+        if "mismatch" in self.active_anomalies:
+            # Inject a mismatching PPID
+            if p_tasks:
+                p_tasks[0].ppid = 31337
+        if "bad_module" in self.active_anomalies:
+            # Inject an unsigned module
+            modules.append(KernelModuleRecord("diamorphine", 16384, "Live", "0x0", "Unsigned", False))
+            
     def run_scan(self):
         self.last_scan_time = time.time()
         
@@ -46,6 +63,13 @@ class BackendController:
             k_tasks = self.provider.get_kernel_tasks()
             p_tasks = self.provider.get_proc_processes()
             modules = self.provider.get_modules()
+            
+        self._apply_anomalies(k_tasks, p_tasks, modules)
+        
+        # Save to controller state for the GUI to read
+        self.last_k_tasks = k_tasks
+        self.last_p_tasks_list = p_tasks
+        self.last_modules = modules
 
         
         self.comparisons = self.comparator.compare(k_tasks, p_tasks)

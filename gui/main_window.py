@@ -143,54 +143,102 @@ class MainWindow(QMainWindow):
 
     def trigger(self, anomaly):
         self.controller.trigger_anomaly(anomaly)
+        # Immediately run scan without waiting for timer
         self.start_scan()
         
     def export_reports(self):
         paths = self.controller.export_reports()
         QMessageBox.information(self, "Export Successful", f"Reports saved to:\n{paths['html']}")
         
-    def on_scan_complete(self, stats):
+    def update_dashboard(self, stats):
         mode = "LIVE" if self.controller.is_live else "MOCK/DEMO"
+        
+        m_color = "orange" if stats['mismatches'] > 0 else "#d4d4d4"
+        a_color = "red" if stats['alerts'] > 0 else "#d4d4d4"
+        
+        r_color = "#d4d4d4"
+        if stats['risk_score'] >= 80:
+            r_color = "red"
+        elif stats['risk_score'] >= 50:
+            r_color = "orange"
+        elif stats['risk_score'] > 0:
+            r_color = "yellow"
+            
         self.lbl_stats.setText(f"""
-        <h2>Mode: {mode}</h2>
-        <p>Last Scan: {time.ctime(stats['last_scan'])}</p>
-        <p>Kernel Tasks: {stats['kernel_count']}</p>
-        <p>Proc Tasks: {stats['proc_count']}</p>
-        <p>Mismatches: {stats['mismatches']}</p>
-        <p>Alerts: {stats['alerts']}</p>
-        <p>Modules: {stats['modules']}</p>
-        <p>Highest Risk Score: {stats['risk_score']}</p>
+        <h2 style='color: #007acc;'>Mode: {mode}</h2>
+        <p style='font-size: 14px;'>Last Scan: {time.ctime(stats['last_scan'])}</p>
+        <p style='font-size: 14px;'>Kernel Tasks: {stats['kernel_count']}</p>
+        <p style='font-size: 14px;'>Proc Tasks: {stats['proc_count']}</p>
+        <p style='color: {m_color}; font-size: 16px; font-weight: bold;'>Mismatches: {stats['mismatches']}</p>
+        <p style='color: {a_color}; font-size: 18px; font-weight: bold;'>Alerts: {stats['alerts']}</p>
+        <p style='font-size: 14px;'>Modules: {stats['modules']}</p>
+        <p style='color: {r_color}; font-size: 16px; font-weight: bold;'>Highest Risk Score: {stats['risk_score']}</p>
         """)
         
+        if stats['alerts'] > getattr(self, '_last_alerts_count', 0):
+            self.show_alert_popup()
+        self._last_alerts_count = stats['alerts']
+            
+    def show_alert_popup(self):
+        from PySide6.QtWidgets import QMessageBox
+        msg = QMessageBox(self)
+        msg.setIcon(QMessageBox.Warning)
+        msg.setWindowTitle("Rootkit Indicator Detected!")
+        msg.setText("A new security alert has been triggered.\nPlease check the 'Alerts' tab for details.")
+        msg.setStyleSheet("background-color: #333333; color: white;")
+        msg.show()
+
+    def on_scan_complete(self, stats):
+        self.update_dashboard(stats)
         self.refresh_tables()
         
     def refresh_tables(self):
+        # Helper for coloring anomalous rows
+        def get_item(text, color=None):
+            item = QTableWidgetItem(str(text))
+            if color:
+                from PySide6.QtGui import QColor, QBrush
+                item.setBackground(QBrush(QColor(color)))
+            return item
+
+        # Determine which PIDs have alerts
+        alert_pids = set()
+        for a in self.controller.current_alerts:
+            if a.target.startswith("PID "):
+                try:
+                    alert_pids.add(int(a.target.split()[1]))
+                except:
+                    pass
+        
         # Update Kernel table
-        k_tasks = self.controller.provider.get_kernel_tasks()
+        k_tasks = getattr(self.controller, 'last_k_tasks', [])
         self.k_table.setRowCount(len(k_tasks))
         for i, t in enumerate(k_tasks):
-            self.k_table.setItem(i, 0, QTableWidgetItem(str(t.pid)))
-            self.k_table.setItem(i, 1, QTableWidgetItem(str(t.ppid)))
-            self.k_table.setItem(i, 2, QTableWidgetItem(t.name))
-            self.k_table.setItem(i, 3, QTableWidgetItem(t.state))
+            color = "#8b0000" if t.pid in alert_pids else None
+            self.k_table.setItem(i, 0, get_item(t.pid, color))
+            self.k_table.setItem(i, 1, get_item(t.ppid, color))
+            self.k_table.setItem(i, 2, get_item(t.name, color))
+            self.k_table.setItem(i, 3, get_item(t.state, color))
 
         # Update Proc table
-        p_tasks = self.controller.provider.get_proc_processes()
+        p_tasks = getattr(self.controller, 'last_p_tasks_list', [])
         self.p_table.setRowCount(len(p_tasks))
         for i, t in enumerate(p_tasks):
-            self.p_table.setItem(i, 0, QTableWidgetItem(str(t.pid)))
-            self.p_table.setItem(i, 1, QTableWidgetItem(str(t.ppid)))
-            self.p_table.setItem(i, 2, QTableWidgetItem(t.name))
-            self.p_table.setItem(i, 3, QTableWidgetItem(t.state))
+            color = "#b8860b" if t.pid in alert_pids else None
+            self.p_table.setItem(i, 0, get_item(t.pid, color))
+            self.p_table.setItem(i, 1, get_item(t.ppid, color))
+            self.p_table.setItem(i, 2, get_item(t.name, color))
+            self.p_table.setItem(i, 3, get_item(t.state, color))
             
         # Update Comparison
         comps = self.controller.comparisons
         self.c_table.setRowCount(len(comps))
         for i, c in enumerate(comps):
-            self.c_table.setItem(i, 0, QTableWidgetItem(str(c.pid)))
-            self.c_table.setItem(i, 1, QTableWidgetItem(c.status))
-            self.c_table.setItem(i, 2, QTableWidgetItem(", ".join(c.differences)))
-            self.c_table.setItem(i, 3, QTableWidgetItem(c.confidence))
+            color = "#8b0000" if c.status != "MATCH" else None
+            self.c_table.setItem(i, 0, get_item(c.pid, color))
+            self.c_table.setItem(i, 1, get_item(c.status, color))
+            self.c_table.setItem(i, 2, get_item(", ".join(c.differences), color))
+            self.c_table.setItem(i, 3, get_item(c.confidence, color))
             
         # Update Alerts
         alerts = self.controller.current_alerts
@@ -204,14 +252,15 @@ class MainWindow(QMainWindow):
             self.a_table.setItem(i, 5, QTableWidgetItem(str(a.is_simulated)))
             
         # Update Modules
-        modules = self.controller.provider.get_modules()
+        modules = getattr(self.controller, 'last_modules', [])
         self.m_table.setRowCount(len(modules))
         for i, m in enumerate(modules):
-            self.m_table.setItem(i, 0, QTableWidgetItem(m.name))
-            self.m_table.setItem(i, 1, QTableWidgetItem(str(m.size)))
-            self.m_table.setItem(i, 2, QTableWidgetItem(m.state))
-            self.m_table.setItem(i, 3, QTableWidgetItem(m.signature_status))
-            self.m_table.setItem(i, 4, QTableWidgetItem(str(m.trusted)))
+            color = "#8b0000" if m.signature_status == "Unsigned" or not m.trusted else None
+            self.m_table.setItem(i, 0, get_item(m.name, color))
+            self.m_table.setItem(i, 1, get_item(m.size, color))
+            self.m_table.setItem(i, 2, get_item(m.state, color))
+            self.m_table.setItem(i, 3, get_item(m.signature_status, color))
+            self.m_table.setItem(i, 4, get_item(m.trusted, color))
 
         # Update Events
         events = getattr(self.controller, 'events', [])
