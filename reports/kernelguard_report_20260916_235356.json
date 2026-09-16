@@ -1,0 +1,82 @@
+{
+    "alerts": [
+        {
+            "timestamp": 1789583036.1119647,
+            "severity": "AlertSeverity.LOW",
+            "category": "KERNEL_ONLY",
+            "target": "PID 1561",
+            "risk_score": 20,
+            "evidence": "Missing in /proc",
+            "explanation": "Process exists in kernel but is hidden from /proc.",
+            "resolution_status": "Active",
+            "is_simulated": true,
+            "alert_id": "5497e233-3092-4e2a-91b0-92b7c3a5ac0e"
+        },
+        {
+            "timestamp": 1789582995.5927918,
+            "severity": "AlertSeverity.LOW",
+            "category": "KERNEL_ONLY",
+            "target": "PID 1289",
+            "risk_score": 20,
+            "evidence": "Missing in /proc",
+            "explanation": "Process exists in kernel but is hidden from /proc.",
+            "resolution_status": "Active",
+            "is_simulated": true,
+            "alert_id": "389d9a09-7170-4ae2-a1d4-ee1b4a337114"
+        },
+        {
+            "timestamp": 1789582985.484333,
+            "severity": "AlertSeverity.LOW",
+            "category": "KERNEL_ONLY",
+            "target": "PID 1256",
+            "risk_score": 20,
+            "evidence": "Missing in /proc",
+            "explanation": "Process exists in kernel but is hidden from /proc.",
+            "resolution_status": "Active",
+            "is_simulated": true,
+            "alert_id": "75541b10-fd30-4b25-8348-5888756c42c5"
+        },
+        {
+            "timestamp": 1789582974.904239,
+            "severity": "AlertSeverity.LOW",
+            "category": "KERNEL_ONLY",
+            "target": "PID 1316",
+            "risk_score": 20,
+            "evidence": "Missing in /proc",
+            "explanation": "Process exists in kernel but is hidden from /proc.",
+            "resolution_status": "Active",
+            "is_simulated": true,
+            "alert_id": "d247842a-d4d3-42b4-b630-5fe06a9d5f1d"
+        },
+        {
+            "timestamp": 1789582961.1939156,
+            "severity": "AlertSeverity.LOW",
+            "category": "KERNEL_ONLY",
+            "target": "PID 1992",
+            "risk_score": 20,
+            "evidence": "Missing in /proc",
+            "explanation": "Process exists in kernel but is hidden from /proc.",
+            "resolution_status": "Active",
+            "is_simulated": true,
+            "alert_id": "be4b9df4-c19d-4310-89b4-b7dbe4ceff53"
+        }
+    ],
+    "modules": [
+        {
+            "name": "ext4",
+            "size": 753664,
+            "state": "Live",
+            "location": "",
+            "signature_status": "Valid",
+            "trusted": true
+        },
+        {
+            "name": "e1000e",
+            "size": 258048,
+            "state": "Live",
+            "location": "",
+            "signature_status": "Valid",
+            "trusted": true
+        }
+    ]
+}

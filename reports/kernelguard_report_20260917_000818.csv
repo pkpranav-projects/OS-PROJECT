@@ -1,0 +1,12 @@
+timestamp,severity,category,target,risk_score,evidence,explanation,resolution_status,is_simulated,alert_id
+1789583898.3639987,LOW,KERNEL_ONLY,PID 1856,20,Missing in /proc,Process exists in kernel but is hidden from /proc.,Active,True,55fee736-d1bd-4094-9a01-70481a925a72
+1789583871.6472678,LOW,KERNEL_ONLY,PID 1460,20,Missing in /proc,Process exists in kernel but is hidden from /proc.,Active,True,2bc1f755-06ea-40b0-b29e-407f6a055114
+1789583807.453958,LOW,KERNEL_ONLY,PID 1083,20,Missing in /proc,Process exists in kernel but is hidden from /proc.,Active,True,4a127b21-e489-462f-b649-b9ad7f18d431
+1789583792.8949187,LOW,KERNEL_ONLY,PID 1761,20,Missing in /proc,Process exists in kernel but is hidden from /proc.,Active,True,c8dad021-8282-4fde-8108-d74df342a98b
+1789583747.7530036,LOW,KERNEL_ONLY,PID 1029,20,Missing in /proc,Process exists in kernel but is hidden from /proc.,Active,True,dea808d4-5baa-4fd3-bbca-084195cca369
+1789583285.9944558,LOW,KERNEL_ONLY,PID 1703,20,Missing in /proc,Process exists in kernel but is hidden from /proc.,Active,True,50150721-c331-41cf-81f6-82d7184871d9
+1789583036.1119647,LOW,KERNEL_ONLY,PID 1561,20,Missing in /proc,Process exists in kernel but is hidden from /proc.,Active,True,5497e233-3092-4e2a-91b0-92b7c3a5ac0e
+1789582995.5927918,LOW,KERNEL_ONLY,PID 1289,20,Missing in /proc,Process exists in kernel but is hidden from /proc.,Active,True,389d9a09-7170-4ae2-a1d4-ee1b4a337114
+1789582985.484333,LOW,KERNEL_ONLY,PID 1256,20,Missing in /proc,Process exists in kernel but is hidden from /proc.,Active,True,75541b10-fd30-4b25-8348-5888756c42c5
+1789582974.904239,LOW,KERNEL_ONLY,PID 1316,20,Missing in /proc,Process exists in kernel but is hidden from /proc.,Active,True,d247842a-d4d3-42b4-b630-5fe06a9d5f1d
+1789582961.1939156,LOW,KERNEL_ONLY,PID 1992,20,Missing in /proc,Process exists in kernel but is hidden from /proc.,Active,True,be4b9df4-c19d-4310-89b4-b7dbe4ceff53
