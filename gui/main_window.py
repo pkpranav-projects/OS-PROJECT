@@ -183,16 +183,23 @@ class MainWindow(QMainWindow):
             
     def show_alert_popup(self):
         from PySide6.QtWidgets import QMessageBox
-        msg = QMessageBox(self)
-        msg.setIcon(QMessageBox.Warning)
-        msg.setWindowTitle("Rootkit Indicator Detected!")
-        msg.setText("A new security alert has been triggered.\nPlease check the 'Alerts' tab for details.")
-        msg.setStyleSheet("background-color: #333333; color: white;")
-        msg.show()
+        self._alert_popup = QMessageBox(self)
+        self._alert_popup.setIcon(QMessageBox.Warning)
+        self._alert_popup.setWindowTitle("Rootkit Indicator Detected!")
+        self._alert_popup.setText("A new security alert has been triggered.\nPlease check the 'Alerts' tab for details.")
+        self._alert_popup.setStyleSheet("background-color: #333333; color: white;")
+        self._alert_popup.show()
 
     def on_scan_complete(self, stats):
         self.update_dashboard(stats)
         self.refresh_tables()
+        
+    def trigger(self, anomaly):
+        self.controller.trigger_anomaly(anomaly)
+        # Immediately run scan synchronously to provide instant feedback and avoid thread collision
+        self.controller.run_scan()
+        stats = self.controller.get_stats()
+        self.on_scan_complete(stats)
         
     def refresh_tables(self):
         # Helper for coloring anomalous rows
@@ -278,13 +285,12 @@ class MainWindow(QMainWindow):
             self.e_table.setItem(i, 5, QTableWidgetItem(e.executable))
             self.e_table.setItem(i, 6, QTableWidgetItem(e.description))
             
-        # Make tabs glow orange if they have indicators
-        from PySide6.QtGui import QColor
+        # Add visual indicators to tabs (bypassing stylesheets)
         has_alerts = len(alerts) > 0
-        self.tabs.tabBar().setTabTextColor(4, QColor("orange") if has_alerts else QColor("#cccccc"))
+        self.tabs.setTabText(4, "🔴 Alerts" if has_alerts else "Alerts")
         
         has_mismatches = any(c.status != "MATCH" for c in comps)
-        self.tabs.tabBar().setTabTextColor(3, QColor("orange") if has_mismatches else QColor("#cccccc"))
+        self.tabs.setTabText(3, "🔴 Comparison" if has_mismatches else "Comparison")
         
         has_bad_modules = any(not m.trusted or m.signature_status == "Unsigned" for m in modules)
-        self.tabs.tabBar().setTabTextColor(5, QColor("orange") if has_bad_modules else QColor("#cccccc"))
+        self.tabs.setTabText(5, "🔴 Modules" if has_bad_modules else "Modules")
