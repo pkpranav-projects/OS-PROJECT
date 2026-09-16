@@ -36,10 +36,12 @@ class BackendController:
         if "hidden_process" in self.active_anomalies:
             # Inject a fake rootkit process into kernel view only
             k_tasks.append(ProcessRecord(9999, 1, "kworker/9:9", "S", 0, "", 0.0, 1, "kernel"))
+            self.comparator.history[9999] = 3
         if "mismatch" in self.active_anomalies:
             # Inject a mismatching PPID
             if p_tasks:
                 p_tasks[0].ppid = 31337
+                self.comparator.history[p_tasks[0].pid] = 3
         if "bad_module" in self.active_anomalies:
             # Inject an unsigned module
             modules.append(KernelModuleRecord("diamorphine", 16384, "Live", "0x0", "Unsigned", False))

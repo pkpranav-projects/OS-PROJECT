@@ -28,6 +28,8 @@ class MainWindow(QMainWindow):
         self.tabs = QTabWidget()
         self.setCentralWidget(self.tabs)
         
+        from PySide6.QtCore import Qt
+        self.setWindowFlags(self.windowFlags() | Qt.WindowMaximizeButtonHint | Qt.WindowMinimizeButtonHint | Qt.WindowCloseButtonHint)
         self.setup_ui()
         
         self.worker = WorkerThread(self.controller)
@@ -275,3 +277,14 @@ class MainWindow(QMainWindow):
             self.e_table.setItem(i, 4, QTableWidgetItem(e.name))
             self.e_table.setItem(i, 5, QTableWidgetItem(e.executable))
             self.e_table.setItem(i, 6, QTableWidgetItem(e.description))
+            
+        # Make tabs glow orange if they have indicators
+        from PySide6.QtGui import QColor
+        has_alerts = len(alerts) > 0
+        self.tabs.tabBar().setTabTextColor(4, QColor("orange") if has_alerts else QColor("#cccccc"))
+        
+        has_mismatches = any(c.status != "MATCH" for c in comps)
+        self.tabs.tabBar().setTabTextColor(3, QColor("orange") if has_mismatches else QColor("#cccccc"))
+        
+        has_bad_modules = any(not m.trusted or m.signature_status == "Unsigned" for m in modules)
+        self.tabs.tabBar().setTabTextColor(5, QColor("orange") if has_bad_modules else QColor("#cccccc"))
