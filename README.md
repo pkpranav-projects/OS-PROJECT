@@ -1,4 +1,4 @@
-# KernelGuard: Cross-View Linux Task Monitoring & Rootkit-Indicator Detection
+# Linux Kernel Task Monitoring & Rootkit-Indicator Detection
 
 KernelGuard is an advanced, cross-view Linux security monitoring framework. It bridges the gap between Ring 0 (kernel space) and Ring 3 (userspace) to detect suspicious indicators of compromise, such as hidden processes, metadata tampering, and unsigned kernel modules.
 
