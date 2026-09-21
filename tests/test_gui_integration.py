@@ -27,15 +27,16 @@ class TestGUIIntegration(unittest.TestCase):
         
         # Verify stats are displayed
         lbl_text = self.window.lbl_stats.text()
-        self.assertIn("Mode: MOCK/DEMO", lbl_text)
+        self.assertIn("DEMO MODE", lbl_text)
         
-        # Verify kernel tasks table populated
-        self.assertGreater(self.window.k_table.rowCount(), 0)
+        # Verify unified process explorer table populated
+        self.assertGreater(self.window.proc_explorer.rowCount(), 0)
         
         # Trigger anomaly synchronously
         self.window.controller.trigger_anomaly("hidden_process")
         
         # Force synchronous update again after anomaly trigger
+        self.window.controller.run_scan()
         stats2 = self.window.controller.get_stats()
         print('DB alerts inside test:', self.window.controller.current_alerts)
         self.window.on_scan_complete(stats2)

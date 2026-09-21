@@ -1,136 +1,110 @@
 import sys
 import time
-from PySide6.QtWidgets import (QApplication, QMainWindow, QTabWidget, QWidget, 
-                              QVBoxLayout, QHBoxLayout, QPushButton, QLabel, 
-                              QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox)
-from PySide6.QtCore import QTimer, Qt, QThread, Signal
+from PySide6.QtWidgets import (
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
+    QLabel, QTableWidget, QTableWidgetItem, QTabWidget, 
+    QHeaderView, QPushButton, QMessageBox
+)
+from PySide6.QtCore import QThread, Signal, Qt
+from PySide6.QtGui import QColor, QBrush
+
 from backend.main import BackendController
 
 class WorkerThread(QThread):
     scan_complete = Signal(dict)
-    
+
     def __init__(self, controller):
         super().__init__()
         self.controller = controller
-        
+        self.running = True
+
     def run(self):
-        self.controller.run_scan()
-        stats = self.controller.get_stats()
-        self.scan_complete.emit(stats)
+        while self.running:
+            self.controller.run_scan()
+            stats = self.controller.get_stats()
+            self.scan_complete.emit(stats)
+            # Sleep in small increments to allow responsive stopping
+            for _ in range(50):
+                if not self.running:
+                    break
+                time.sleep(0.1)
+
+    def stop(self):
+        self.running = False
+        self.wait()
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("KernelGuard - Task Monitoring")
-        self.resize(1000, 700)
         self.controller = BackendController()
+        
+        self.setWindowTitle("KernelGuard - Advanced Rootkit Detection")
+        self.resize(1100, 750)
         
         self.tabs = QTabWidget()
         self.setCentralWidget(self.tabs)
         
-        from PySide6.QtCore import Qt
         self.setWindowFlags(self.windowFlags() | Qt.WindowMaximizeButtonHint | Qt.WindowMinimizeButtonHint | Qt.WindowCloseButtonHint)
         self.setup_ui()
         
         self.worker = WorkerThread(self.controller)
         self.worker.scan_complete.connect(self.on_scan_complete)
+        self.worker.start()
         
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.start_scan)
-        self.timer.start(5000) # Scan every 5s
-        
-        # Apply visual styling
+    def setup_ui(self):
         self.apply_stylesheet()
         
-        self.start_scan()
-        
-    def apply_stylesheet(self):
-        self.setStyleSheet("""
-            QMainWindow {
-                background-color: #1e1e1e;
-                color: #d4d4d4;
-            }
-            QTabWidget::pane {
-                border: 1px solid #333333;
-                background-color: #252526;
-            }
-            QTabBar::tab {
-                background: #2d2d2d;
-                color: #cccccc;
-                padding: 10px;
-                border: 1px solid #333;
-            }
-            QTabBar::tab:selected {
-                background: #007acc;
-                color: white;
-            }
-            QTableWidget {
-                background-color: #1e1e1e;
-                color: #d4d4d4;
-                gridline-color: #333333;
-                border: none;
-            }
-            QHeaderView::section {
-                background-color: #252526;
-                color: #d4d4d4;
-                padding: 4px;
-                border: 1px solid #333333;
-            }
-            QPushButton {
-                background-color: #0e639c;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
-            }
-            QPushButton:hover {
-                background-color: #1177bb;
-            }
-            QLabel {
-                color: #d4d4d4;
-            }
-        """)
-
-    def setup_ui(self):
-        # Dashboard
+        # 1. Dashboard Tab
         self.dash_tab = QWidget()
         dash_layout = QVBoxLayout(self.dash_tab)
-        self.lbl_stats = QLabel("Loading stats...")
-        self.lbl_stats.setTextFormat(Qt.RichText)
+        
+        self.lbl_stats = QLabel("Initializing Security Engines...")
+        self.lbl_stats.setAlignment(Qt.AlignCenter)
         dash_layout.addWidget(self.lbl_stats)
         
+        dash_layout.addStretch()
+        
         btn_layout = QHBoxLayout()
-        btn_hidden = QPushButton("Run Demo Anomaly: Hidden Process")
+        btn_hidden = QPushButton("Demo: Inject Hidden Process")
         btn_hidden.clicked.connect(lambda: self.trigger("hidden_process"))
-        btn_meta = QPushButton("Run Demo Anomaly: Mismatch")
-        btn_meta.clicked.connect(lambda: self.trigger("metadata_mismatch"))
-        btn_mod = QPushButton("Run Demo Anomaly: Bad Module")
-        btn_mod.clicked.connect(lambda: self.trigger("suspicious_module"))
+        btn_meta = QPushButton("Demo: Spoof Process Metadata")
+        btn_meta.clicked.connect(lambda: self.trigger("mismatch"))
+        btn_mod = QPushButton("Demo: Load Malicious Module")
+        btn_mod.clicked.connect(lambda: self.trigger("bad_module"))
         
         btn_layout.addWidget(btn_hidden)
         btn_layout.addWidget(btn_meta)
         btn_layout.addWidget(btn_mod)
         dash_layout.addLayout(btn_layout)
         
-        btn_export = QPushButton("Export Reports")
+        btn_export = QPushButton("Generate Security Report")
         btn_export.clicked.connect(self.export_reports)
         dash_layout.addWidget(btn_export)
         
-        # Tables
-        self.k_table = self.create_table(["PID", "PPID", "Name", "State"])
-        self.p_table = self.create_table(["PID", "PPID", "Name", "State"])
-        self.c_table = self.create_table(["PID", "Status", "Differences", "Confidence"])
-        self.a_table = self.create_table(["Time", "Severity", "Category", "Target", "Score", "Simulated"])
-        self.m_table = self.create_table(["Name", "Size", "State", "Signature", "Trusted"])
-        self.e_table = self.create_table(["Time", "Event", "PID", "PPID", "Name", "Executable", "Description"])
+        # 2. Process Explorer (Unified Table)
+        self.proc_explorer = self.create_table([
+            "PID", "Name", "PPID", "Kernel Status", "Userspace (/proc)", "Trust Verification"
+        ])
         
+        # 3. Kernel Modules
+        self.m_table = self.create_table(["Module Name", "Size (bytes)", "State", "Signature", "Trusted"])
+        
+        # 4. Security Alerts (Combined Alerts and Events)
+        self.alerts_tab = QWidget()
+        alerts_layout = QVBoxLayout(self.alerts_tab)
+        alerts_layout.addWidget(QLabel("<h3>Active Rootkit Indicators & Alerts</h3>"))
+        self.a_table = self.create_table(["Time", "Severity", "Target", "Score", "Indicator Evidence"])
+        alerts_layout.addWidget(self.a_table)
+        
+        alerts_layout.addWidget(QLabel("<h3>System Events Log</h3>"))
+        self.e_table = self.create_table(["Time", "Event", "PID", "Process Name", "Description"])
+        alerts_layout.addWidget(self.e_table)
+        
+        # Add Tabs
         self.tabs.addTab(self.dash_tab, "Dashboard")
-        self.tabs.addTab(self.k_table, "Kernel Tasks")
-        self.tabs.addTab(self.p_table, "Userspace (/proc)")
-        self.tabs.addTab(self.c_table, "Comparison")
-        self.tabs.addTab(self.a_table, "Alerts")
-        self.tabs.addTab(self.m_table, "Modules")
-        self.tabs.addTab(self.e_table, "Events")
+        self.tabs.addTab(self.proc_explorer, "Process Explorer")
+        self.tabs.addTab(self.m_table, "Kernel Modules")
+        self.tabs.addTab(self.alerts_tab, "Security Alerts")
 
     def create_table(self, headers):
         t = QTableWidget()
@@ -143,38 +117,39 @@ class MainWindow(QMainWindow):
         if not self.worker.isRunning():
             self.worker.start()
 
-    def trigger(self, anomaly):
-        self.controller.trigger_anomaly(anomaly)
-        # Immediately run scan without waiting for timer
-        self.start_scan()
-        
     def export_reports(self):
         paths = self.controller.export_reports()
-        QMessageBox.information(self, "Export Successful", f"Reports saved to:\n{paths['html']}")
+        QMessageBox.information(self, "Export Successful", f"Security Reports saved to:\n{paths['html']}")
         
     def update_dashboard(self, stats):
-        mode = "LIVE" if self.controller.is_live else "MOCK/DEMO"
+        mode = "LIVE (Kernel Module Active)" if self.controller.is_live else "DEMO MODE (Simulated Data)"
         
-        m_color = "orange" if stats['mismatches'] > 0 else "#d4d4d4"
-        a_color = "red" if stats['alerts'] > 0 else "#d4d4d4"
+        m_color = "#ff8c00" if stats['mismatches'] > 0 else "#2d2d2d"
+        a_color = "#b22222" if stats['alerts'] > 0 else "#2d2d2d"
         
-        r_color = "#d4d4d4"
+        r_color = "#00ff00"
         if stats['risk_score'] >= 80:
-            r_color = "red"
+            r_color = "#ff0000"
         elif stats['risk_score'] >= 50:
-            r_color = "orange"
-        elif stats['risk_score'] > 0:
-            r_color = "yellow"
+            r_color = "#ff8c00"
             
         self.lbl_stats.setText(f"""
-        <h2 style='color: #007acc;'>Mode: {mode}</h2>
-        <p style='font-size: 14px;'>Last Scan: {time.ctime(stats['last_scan'])}</p>
-        <p style='font-size: 14px;'>Kernel Tasks: {stats['kernel_count']}</p>
-        <p style='font-size: 14px;'>Proc Tasks: {stats['proc_count']}</p>
-        <p style='color: {m_color}; font-size: 16px; font-weight: bold;'>Mismatches: {stats['mismatches']}</p>
-        <p style='color: {a_color}; font-size: 18px; font-weight: bold;'>Alerts: {stats['alerts']}</p>
-        <p style='font-size: 14px;'>Modules: {stats['modules']}</p>
-        <p style='color: {r_color}; font-size: 16px; font-weight: bold;'>Highest Risk Score: {stats['risk_score']}</p>
+        <div style='text-align: center;'>
+            <h1 style='color: #00aaff; font-size: 28px; margin-bottom: 5px;'>KernelGuard Security Status</h1>
+            <h3 style='color: #aaaaaa; margin-top: 0;'>{mode}</h3>
+            <hr style='border: 1px solid #444; width: 80%;'>
+            <p style='font-size: 16px;'><b>Last Scan:</b> {time.ctime(stats['last_scan'])}</p>
+            <p style='font-size: 16px;'><b>Tracked Processes:</b> {max(stats['kernel_count'], stats['proc_count'])} | <b>Kernel Modules:</b> {stats['modules']}</p>
+            <br>
+            <div style='background-color: {a_color}; padding: 15px; border-radius: 5px; margin: 10px 20%;'>
+                <h2 style='margin: 0; color: white;'>Security Alerts: {stats['alerts']}</h2>
+            </div>
+            <div style='background-color: {m_color}; padding: 15px; border-radius: 5px; margin: 10px 20%;'>
+                <h2 style='margin: 0; color: white;'>Kernel/User Mismatches: {stats['mismatches']}</h2>
+            </div>
+            <br>
+            <h2 style='color: {r_color};'>Threat Level Score: {stats['risk_score']} / 100</h2>
+        </div>
         """)
         
         if stats['alerts'] > getattr(self, '_last_alerts_count', 0):
@@ -182,12 +157,11 @@ class MainWindow(QMainWindow):
         self._last_alerts_count = stats['alerts']
             
     def show_alert_popup(self):
-        from PySide6.QtWidgets import QMessageBox
         self._alert_popup = QMessageBox(self)
-        self._alert_popup.setIcon(QMessageBox.Warning)
-        self._alert_popup.setWindowTitle("Rootkit Indicator Detected!")
-        self._alert_popup.setText("A new security alert has been triggered.\nPlease check the 'Alerts' tab for details.")
-        self._alert_popup.setStyleSheet("background-color: #333333; color: white;")
+        self._alert_popup.setIcon(QMessageBox.Critical)
+        self._alert_popup.setWindowTitle("CRITICAL: Rootkit Indicator Detected!")
+        self._alert_popup.setText("A critical security alert has been triggered.\nKernelGuard has detected suspicious activity bypassing standard OS boundaries.\n\nPlease check the 'Security Alerts' tab.")
+        self._alert_popup.setStyleSheet("background-color: #2b0000; color: white; font-weight: bold;")
         self._alert_popup.show()
 
     def on_scan_complete(self, stats):
@@ -196,101 +170,147 @@ class MainWindow(QMainWindow):
         
     def trigger(self, anomaly):
         self.controller.trigger_anomaly(anomaly)
-        # Immediately run scan synchronously to provide instant feedback and avoid thread collision
         self.controller.run_scan()
         stats = self.controller.get_stats()
         self.on_scan_complete(stats)
         
     def refresh_tables(self):
-        # Helper for coloring anomalous rows
         def get_item(text, color=None):
             item = QTableWidgetItem(str(text))
             if color:
-                from PySide6.QtGui import QColor, QBrush
                 item.setBackground(QBrush(QColor(color)))
             return item
 
-        # Determine which PIDs have alerts
-        alert_pids = set()
-        for a in self.controller.current_alerts:
-            if a.target.startswith("PID "):
-                try:
-                    alert_pids.add(int(a.target.split()[1]))
-                except:
-                    pass
+        # 1. Process Explorer (Unified Table)
+        k_tasks = {t.pid: t for t in getattr(self.controller, 'last_k_tasks', [])}
+        p_tasks = {t.pid: t for t in getattr(self.controller, 'last_p_tasks_list', [])}
+        all_pids = sorted(list(set(k_tasks.keys()).union(set(p_tasks.keys()))))
         
-        # Update Kernel table
-        k_tasks = getattr(self.controller, 'last_k_tasks', [])
-        self.k_table.setRowCount(len(k_tasks))
-        for i, t in enumerate(k_tasks):
-            color = "#8b0000" if t.pid in alert_pids else None
-            self.k_table.setItem(i, 0, get_item(t.pid, color))
-            self.k_table.setItem(i, 1, get_item(t.ppid, color))
-            self.k_table.setItem(i, 2, get_item(t.name, color))
-            self.k_table.setItem(i, 3, get_item(t.state, color))
+        self.proc_explorer.setRowCount(len(all_pids))
+        for i, pid in enumerate(all_pids):
+            k = k_tasks.get(pid)
+            p = p_tasks.get(pid)
+            name = k.name if k else p.name
+            ppid = k.ppid if k else p.ppid
+            
+            k_status = "Found" if k else "Missing"
+            p_status = "Found" if p else "Missing"
+            
+            trust = "Trusted"
+            color = None
+            
+            if k and not p:
+                trust = "CRITICAL: Hidden Rootkit"
+                color = "#660000"
+            elif not k and p:
+                trust = "WARNING: Dead/Ghost Process"
+                color = "#664400"
+            elif k and p and k.ppid != p.ppid:
+                trust = "HIGH: PPID Spoofing"
+                color = "#660000"
 
-        # Update Proc table
-        p_tasks = getattr(self.controller, 'last_p_tasks_list', [])
-        self.p_table.setRowCount(len(p_tasks))
-        for i, t in enumerate(p_tasks):
-            color = "#b8860b" if t.pid in alert_pids else None
-            self.p_table.setItem(i, 0, get_item(t.pid, color))
-            self.p_table.setItem(i, 1, get_item(t.ppid, color))
-            self.p_table.setItem(i, 2, get_item(t.name, color))
-            self.p_table.setItem(i, 3, get_item(t.state, color))
+            self.proc_explorer.setItem(i, 0, get_item(pid, color))
+            self.proc_explorer.setItem(i, 1, get_item(name, color))
+            self.proc_explorer.setItem(i, 2, get_item(ppid, color))
+            self.proc_explorer.setItem(i, 3, get_item(k_status, color))
+            self.proc_explorer.setItem(i, 4, get_item(p_status, color))
+            self.proc_explorer.setItem(i, 5, get_item(trust, color))
             
-        # Update Comparison
-        comps = self.controller.comparisons
-        self.c_table.setRowCount(len(comps))
-        for i, c in enumerate(comps):
-            color = "#8b0000" if c.status != "MATCH" else None
-            self.c_table.setItem(i, 0, get_item(c.pid, color))
-            self.c_table.setItem(i, 1, get_item(c.status, color))
-            self.c_table.setItem(i, 2, get_item(", ".join(c.differences), color))
-            self.c_table.setItem(i, 3, get_item(c.confidence, color))
+        # 2. Kernel Modules
+        modules = getattr(self.controller, 'last_modules', [])
+        self.m_table.setRowCount(len(modules))
+        has_bad_modules = False
+        for i, m in enumerate(modules):
+            is_bad = (m.signature_status == "Unsigned" or not m.trusted)
+            color = "#660000" if is_bad else None
+            if is_bad: has_bad_modules = True
             
-        # Update Alerts
+            self.m_table.setItem(i, 0, get_item(m.name, color))
+            self.m_table.setItem(i, 1, get_item(m.size, color))
+            self.m_table.setItem(i, 2, get_item(m.state, color))
+            self.m_table.setItem(i, 3, get_item(m.signature_status, color))
+            self.m_table.setItem(i, 4, get_item("Trusted" if m.trusted else "Untrusted", color))
+
+        # 3. Security Alerts
         alerts = self.controller.current_alerts
         self.a_table.setRowCount(len(alerts))
         for i, a in enumerate(alerts):
             self.a_table.setItem(i, 0, QTableWidgetItem(time.strftime("%H:%M:%S", time.localtime(a.timestamp))))
             self.a_table.setItem(i, 1, QTableWidgetItem(a.severity.name))
-            self.a_table.setItem(i, 2, QTableWidgetItem(a.category))
-            self.a_table.setItem(i, 3, QTableWidgetItem(a.target))
-            self.a_table.setItem(i, 4, QTableWidgetItem(str(a.risk_score)))
-            self.a_table.setItem(i, 5, QTableWidgetItem(str(a.is_simulated)))
-            
-        # Update Modules
-        modules = getattr(self.controller, 'last_modules', [])
-        self.m_table.setRowCount(len(modules))
-        for i, m in enumerate(modules):
-            color = "#8b0000" if m.signature_status == "Unsigned" or not m.trusted else None
-            self.m_table.setItem(i, 0, get_item(m.name, color))
-            self.m_table.setItem(i, 1, get_item(m.size, color))
-            self.m_table.setItem(i, 2, get_item(m.state, color))
-            self.m_table.setItem(i, 3, get_item(m.signature_status, color))
-            self.m_table.setItem(i, 4, get_item(m.trusted, color))
+            self.a_table.setItem(i, 2, QTableWidgetItem(a.target))
+            self.a_table.setItem(i, 3, QTableWidgetItem(str(a.risk_score)))
+            self.a_table.setItem(i, 4, QTableWidgetItem(a.explanation))
 
-        # Update Events
-        events = getattr(self.controller, 'events', [])
-        # Only show the latest 50 events to avoid UI lag
-        events = events[-50:]
+        # 4. Events Log
+        events = getattr(self.controller, 'events', [])[-50:]
         self.e_table.setRowCount(len(events))
         for i, e in enumerate(events):
             self.e_table.setItem(i, 0, QTableWidgetItem(time.strftime("%H:%M:%S", time.localtime(e.timestamp))))
             self.e_table.setItem(i, 1, QTableWidgetItem(e.event_type))
             self.e_table.setItem(i, 2, QTableWidgetItem(str(e.pid)))
-            self.e_table.setItem(i, 3, QTableWidgetItem(str(e.ppid)))
-            self.e_table.setItem(i, 4, QTableWidgetItem(e.name))
-            self.e_table.setItem(i, 5, QTableWidgetItem(e.executable))
-            self.e_table.setItem(i, 6, QTableWidgetItem(e.description))
+            self.e_table.setItem(i, 3, QTableWidgetItem(e.name))
+            self.e_table.setItem(i, 4, QTableWidgetItem(e.description))
             
-        # Add visual indicators to tabs (bypassing stylesheets)
+        # Tab Glowing Logic
         has_alerts = len(alerts) > 0
-        self.tabs.setTabText(4, "🔴 Alerts" if has_alerts else "Alerts")
+        has_mismatches = any(k_tasks.get(pid) and not p_tasks.get(pid) for pid in all_pids) or any(k_tasks.get(pid) and p_tasks.get(pid) and k_tasks[pid].ppid != p_tasks[pid].ppid for pid in all_pids)
         
-        has_mismatches = any(c.status != "MATCH" for c in comps)
-        self.tabs.setTabText(3, "🔴 Comparison" if has_mismatches else "Comparison")
-        
-        has_bad_modules = any(not m.trusted or m.signature_status == "Unsigned" for m in modules)
-        self.tabs.setTabText(5, "🔴 Modules" if has_bad_modules else "Modules")
+        self.tabs.setTabText(1, "🔴 Process Explorer" if has_mismatches else "Process Explorer")
+        self.tabs.setTabText(2, "🔴 Kernel Modules" if has_bad_modules else "Kernel Modules")
+        self.tabs.setTabText(3, "🔴 Security Alerts" if has_alerts else "Security Alerts")
+
+    def apply_stylesheet(self):
+        self.setStyleSheet("""
+            QMainWindow {
+                background-color: #1e1e1e;
+            }
+            QLabel {
+                color: #d4d4d4;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            }
+            QTabWidget::pane {
+                border: 1px solid #444;
+                background-color: #1e1e1e;
+            }
+            QTabBar::tab {
+                background: #2d2d2d;
+                color: #cccccc;
+                padding: 12px 20px;
+                border: 1px solid #333;
+                font-weight: bold;
+                font-size: 14px;
+            }
+            QTabBar::tab:selected {
+                background: #007acc;
+                color: white;
+            }
+            QTableWidget {
+                background-color: #252526;
+                color: #d4d4d4;
+                gridline-color: #3f3f46;
+                border: none;
+                font-size: 13px;
+            }
+            QHeaderView::section {
+                background-color: #333333;
+                color: #ffffff;
+                padding: 6px;
+                border: 1px solid #3f3f46;
+                font-weight: bold;
+            }
+            QPushButton {
+                background-color: #007acc;
+                color: white;
+                border: none;
+                padding: 10px;
+                font-weight: bold;
+                border-radius: 4px;
+            }
+            QPushButton:hover {
+                background-color: #0098ff;
+            }
+        """)
+
+    def closeEvent(self, event):
+        self.worker.stop()
+        event.accept()

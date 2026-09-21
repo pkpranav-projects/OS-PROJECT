@@ -1,27 +1,33 @@
-# KernelGuard: Cross-View Linux Task Monitoring & Rootkit-Indicator Detection
+# KernelGuard: Cross-View Linux Task Monitoring & Rootkit Detection
 
 KernelGuard is an advanced, cross-view Linux security monitoring framework. It bridges the gap between Ring 0 (kernel space) and Ring 3 (userspace) to detect suspicious indicators of compromise, such as hidden processes, metadata tampering, and unsigned kernel modules.
 
-## 🛡️ Architecture & Features
+## 🚀 Architecture & Core Logic
 
 Traditional userspace tools like `ps` and `top` rely on the `/proc` filesystem. A sufficiently privileged kernel-level threat (a rootkit) can hook system calls or manipulate Virtual File System (VFS) operations to hide its presence. 
 
 KernelGuard counters this by utilizing a **Cross-View Comparison Engine**:
 1. **Kernel Task Enumerator:** A custom Linux Kernel Module (LKM) safely traverses the internal `task_struct` linked list using `rcu_read_lock()` and exposes a raw, unhooked view of running processes.
 2. **Userspace Procfs Scanner:** A separate engine independently parses standard `/proc` directories.
-3. **Comparison & Risk Engine:** The backend compares both views in real-time. If a process exists in the kernel but is missing from `/proc`, it is flagged with a high-severity "Hidden Process" alert.
+3. **Aggressive Risk Engine:** The backend compares both views in real-time and explicitly scores them based on established rootkit behavior:
+   - **Hidden Processes [Score: 100 / CRITICAL]:** If a process exists in the kernel but is missing from `/proc`, it indicates a Ring-0 rootkit actively hooking `getdents` to hide.
+   - **Malicious Modules [Score: 100 / CRITICAL]:** Detects explicitly unsigned modules or known rootkit signatures (e.g., `diamorphine`).
+   - **PPID Spoofing [Score: 75 / HIGH]:** If parent-process metadata in userspace is desynced from the true kernel structures, it indicates Process Hollowing or spoofing.
 
-### Key Capabilities
-- **Direct Task Enumeration:** Safely queries internal kernel structures without hooking system calls.
-- **Process Anomaly Detection:** Detects hidden processes, PID spoofing, and parent-child mismatches.
-- **Module Monitoring:** Baselines loaded kernel modules and audits `/sys/module` for taint flags and unsigned injections.
-- **Event Tracking:** State-diffing event timeline logging `CREATED`, `EXITED`, and `CREDENTIAL_CHANGED` events.
-- **Graphical Dashboard:** A responsive PySide6-based UI to visualize tasks, mismatches, and alerts.
-- **Reporting:** Export detailed security audits to JSON, CSV, and HTML.
+## 🎨 Modern & Unified Interface
+
+The GUI has been completely refactored from the ground up for simplicity and clarity. Instead of forcing users to cross-reference multiple raw tables, KernelGuard intelligently aggregates data into 4 modern views:
+
+1. **Dashboard:** A sleek control panel showing global security scores, tracked processes, active mismatches, and quick-access buttons to run safe simulated rootkit attacks.
+2. **Process Explorer:** A massive upgrade over raw tables. This unified view directly merges Kernel and `/proc` visibility into a single pane. A quick glance at the **"Trust Verification"** column immediately reveals if a process is "Trusted", a "Hidden Rootkit", or a "Ghost".
+3. **Kernel Modules:** A dedicated audit page that verifies digital signatures and trust boundaries for all loaded modules.
+4. **Security Alerts:** A consolidated threat feed containing both Critical Rootkit Indicators (with risk scores and forensic evidence) and general system event logs.
+
+**Dynamic Threat Highlighting:** Any tab containing active rootkits will dynamically glow with a 🔴 indicator, guaranteeing threats are impossible to miss.
 
 ---
 
-## 🚀 Installation & Setup
+## 🛠️ Installation & Setup
 
 KernelGuard is designed to be easily deployable across major Linux distributions (Ubuntu/Debian, RHEL/Fedora, and Arch Linux).
 
@@ -55,20 +61,8 @@ To launch the KernelGuard dashboard, simply use the runner script. This script a
 ./run.sh
 ```
 
-### Navigating the Interface
-- **Dashboard:** High-level statistics, risk score overview, and "Run Demo Anomaly" buttons.
-- **Kernel Tasks:** The raw process list read directly from our kernel module.
-- **Userspace (/proc):** The standard process list visible to normal OS tools.
-- **Comparison:** Real-time cross-referencing between the two views.
-- **Alerts:** Risk-scored findings (e.g., KERNEL_ONLY indicating a hidden process).
-- **Modules:** Audits all loaded LKMs for active baseline deviations and signature status.
-- **Events:** Historical tracking of process state changes.
-
----
-
-## 🧪 Testing Anomalies Safely
-
-KernelGuard includes a **Demo/Mock Mode** accessible directly from the Dashboard. You can click the "Run Demo Anomaly" buttons to safely inject simulated rootkit indicators (such as an artificial hidden process or an unsigned module) into the data pipeline. This allows you to evaluate the Risk Engine and Alert generation without deploying actual malware on your host.
+### Testing Anomalies Safely
+KernelGuard includes a **Live Demo Mode** accessible directly from the Dashboard. You can click the "Demo" buttons to safely inject simulated rootkit indicators directly into the live data pipeline. This immediately bypasses normal time-delays, triggering instant UI reactions and critical security alerts, allowing you to test the Risk Engine without deploying actual malware.
 
 ---
 
@@ -76,4 +70,3 @@ KernelGuard includes a **Demo/Mock Mode** accessible directly from the Dashboard
 
 - **Educational Purpose:** This project is an indicator detector designed for university/academic research. It is not a guaranteed, production-grade rootkit detector.
 - **Kernel Compromise:** As with any host-based intrusion detection system, a sufficiently privileged Ring 0 attacker could theoretically manipulate the `task_struct` list itself or subvert the monitoring module. For absolute assurance, out-of-band monitoring (e.g., hypervisor introspection or memory forensics) is required.
-- **Race Conditions:** Process creation and termination happen in milliseconds. The Risk Engine uses a consecutive-scan threshold (history tracking) to prevent false positives caused by normal, short-lived processes.

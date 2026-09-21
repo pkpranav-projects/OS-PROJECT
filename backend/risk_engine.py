@@ -12,15 +12,20 @@ class RiskEngine:
             score = 0
             severity = AlertSeverity.INFO
             
-            if comp.consecutive_count == 1:
-                score = 20
-                severity = AlertSeverity.LOW
-            elif comp.consecutive_count >= 3:
-                score = 50
-                severity = AlertSeverity.MEDIUM
+            # Simulated rootkits bypass the delay
+            is_urgent = comp.consecutive_count >= 3
+
+            if is_urgent:
                 if comp.status == "KERNEL_ONLY":
-                    score = 70
+                    # HIDDEN PROCESS (Classic Rootkit Behavior)
+                    score = 100
+                    severity = AlertSeverity.CRITICAL
+                    comp.explanation = "CRITICAL: Process is running in kernel but deliberately hidden from userspace (/proc). This is a primary indicator of a Ring-0 rootkit."
+                else:
+                    # METADATA SPOOFING (e.g. PPID mismatch)
+                    score = 75
                     severity = AlertSeverity.HIGH
+                    comp.explanation = "HIGH: Process metadata (like Parent PID) in userspace does not match the true kernel structures. Indicates process hollowing or spoofing."
 
             if score > 0:
                 alerts.append(Alert(
@@ -31,16 +36,16 @@ class RiskEngine:
                     risk_score=score,
                     evidence=", ".join(comp.differences),
                     explanation=comp.explanation,
-                    is_simulated=True # Assuming mock for Phase 1
+                    is_simulated=True
                 ))
                 
         for mod in modules:
-            if not mod.trusted:
-                score = 30
-                severity = AlertSeverity.LOW
-                if mod.signature_status == "Unsigned":
-                    score += 20
-                    severity = AlertSeverity.MEDIUM
+            if not mod.trusted or mod.signature_status == "Unsigned":
+                score = 85
+                severity = AlertSeverity.HIGH
+                if mod.name == "diamorphine":
+                    score = 100
+                    severity = AlertSeverity.CRITICAL
                     
                 alerts.append(Alert(
                     timestamp=time.time(),
@@ -49,7 +54,7 @@ class RiskEngine:
                     target=f"Module {mod.name}",
                     risk_score=score,
                     evidence=f"Trusted: {mod.trusted}, Signature: {mod.signature_status}",
-                    explanation="An unknown or unsigned kernel module was detected.",
+                    explanation="CRITICAL: An unknown or unsigned kernel module was loaded. Rootkits often use LKM (Loadable Kernel Modules) to hook syscalls.",
                     is_simulated=True
                 ))
                 

@@ -15,15 +15,15 @@ class TestRiskEngine(unittest.TestCase):
         comps = [ComparisonResult(1, "KERNEL_ONLY", ["Missing"], "HIGH", 0, 0, 3, "")]
         alerts = self.engine.evaluate(comps, [])
         self.assertEqual(len(alerts), 1)
-        self.assertEqual(alerts[0].severity, AlertSeverity.HIGH)
-        self.assertEqual(alerts[0].risk_score, 70)
+        self.assertEqual(alerts[0].severity, AlertSeverity.CRITICAL)
+        self.assertEqual(alerts[0].risk_score, 100)
 
     def test_suspicious_module(self):
         mods = [KernelModuleRecord("diamorphine", 123, "Live", "", "Unsigned", False)]
         alerts = self.engine.evaluate([], mods)
         self.assertEqual(len(alerts), 1)
         self.assertEqual(alerts[0].category, "SUSPICIOUS_MODULE")
-        self.assertEqual(alerts[0].risk_score, 50) # 30 for untrusted + 20 for unsigned
+        self.assertEqual(alerts[0].risk_score, 100)
 
 if __name__ == "__main__":
     unittest.main()
